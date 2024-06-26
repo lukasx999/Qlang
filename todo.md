@@ -10,6 +10,7 @@
 - Include Modules\
 - print to stdout\
 - Implement a stack (push/pop)\
+- Syntax highlighting for Vim\
 
 
 # Done

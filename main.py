@@ -7,18 +7,13 @@ from typing import Generator, Callable, Any, AnyStr
 from pprint import pprint
 
 # Modules
-from preprocessor import macro
+from include.preprocessor import macro
 
-
-
-"""
-A calculator language called q
-"""
 
 
 
 MESSAGE: str = dedent("""\
-                      Q - a primitive calculator language
+                      Q - a primitive programming language
                       usage: qlang <filename.q>\
                       """)
 COMMENT_CHAR: str = "#"
