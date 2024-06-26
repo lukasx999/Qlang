@@ -86,6 +86,14 @@ class Operations:
 
 
 
+    def puts(self, *, name: str) -> None:
+        ...
+
+    def push(self, *, name: str) -> None:
+        ...
+
+    def pop(self, *, name: str) -> None:
+        ...
 
 
     def assignment(self, *, name: str, value: str | int) -> None:
