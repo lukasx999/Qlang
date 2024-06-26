@@ -1,4 +1,7 @@
-var x
-var y
-var z
-macro U := x = 5
+include! example_lib
+
+
+macro! U := var z
+U
+
+

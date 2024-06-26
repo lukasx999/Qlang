@@ -7,7 +7,7 @@
 - - var x = 5\
 - - const x = 5\
 
-- Include Modules\
+- Add argparse options for configuring the preprocessor\
 - print to stdout\
 - Implement a stack (push/pop)\
 - Syntax highlighting for Vim\
@@ -15,8 +15,10 @@
 
 # Done
 
+
+- Include Modules\
 - Compiler Flags\
-- - FLAG_.*\
+- - FLAG_.\*\
 
 - Macro system / preprocessor\
 - - search/replace values\

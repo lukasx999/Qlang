@@ -7,7 +7,8 @@ from typing import Generator, Callable, Any, AnyStr
 from pprint import pprint
 
 # Modules
-from include.preprocessor import macro
+# from include.preprocessor import macro, include
+import include.preprocessor as prepro
 
 
 
@@ -17,7 +18,7 @@ MESSAGE: str = dedent("""\
                       usage: qlang <filename.q>\
                       """)
 COMMENT_CHAR: str = "#"
-LINE_SEPERATOR: str = " "
+TOKEN_SEPERATOR: str = " "
 
 
 
@@ -34,14 +35,12 @@ def prettify_lines(lines: tuple[str]) -> tuple[str]:
 
 
 class Operations:
-
     _instance = None
 
     # Singleton
     def __new__(cls):
         if cls._instance == None:
             cls._instance = super().__new__(cls)
-
         return cls._instance
 
 
@@ -146,16 +145,6 @@ class Operations:
 
 
 
-        # else:
-        #     raise Exception("ERROR: input value!")
-
-
-
-
-
-
-
-
 
 
 
@@ -171,6 +160,7 @@ def execute(operations: tuple[dict[tuple[str]: str]]) -> None:
         for op_name, values in operation.items():
 
             match op_name:
+
                 case op.DECLARATION_VAR:
                     name = values[1]
                     op.declaration_var(name=name)
@@ -219,19 +209,22 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
     DECLARATION_CONST: str = "const"
     ASSIGNMENT_EQUALS: str = "="
 
+    # Prepro
+    INCLUDE: str = "include!"
+    MACRO: str = "macro!"
+    # MACRO_EQUALS: str = ":="
+
 
 
     operation = None
 
     operations: list[dict[str: tuple[str]]] = []
 
-    """
-    {[let x]: decl_var}
-    """
 
 
     for line in lines:
-        line: tuple[str] = tuple(line.split(LINE_SEPERATOR))
+        line: tuple[str] = tuple(line.split(TOKEN_SEPERATOR))
+        print(line)
 
         # Declaring a variable
         if len(line) == 2 and line[0] == DECLARATION_VAR and line[1].isalpha() == True:
@@ -247,9 +240,20 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
 
 
 
+        # ignore preprocessor directives
+
+        # Include
+        elif len(line) == 2 and line[0] == INCLUDE:
+            continue
+
+        # Macro
+        elif line[0] == MACRO:  # HACK: does not check for :=
+            continue            # gets replaced by prepro
+
+
+
         else:
             operation = None
-
 
         # Unknown operation
         if operation == None:
@@ -266,6 +270,11 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
 
 
 
+def get_lines(filename: str) -> tuple[str]:
+    with open(filename, "r") as file:
+        lines: tuple[str] = tuple(file.readlines())
+    return lines
+
 
 
 def main() -> None:
@@ -276,14 +285,23 @@ def main() -> None:
     else:
         filename: str = sys.argv[1]
 
+    lines: tuple[str] = get_lines(filename)
 
-    with open(filename, "r") as file:
-        lines: tuple[str] = tuple(file.readlines())
 
+
+
+    # Configure the preprocessor
+    prepro.Arguments.FLAG_MACRO_DISABLE = False
+
+
+    # Run preprocessor directives: Include external libraries
     lines = prettify_lines(lines)
+    lines = prepro.include(lines)
 
-    lines = macro(lines)  # Preprocessor
 
+    # Run preprocessor directives: Macros
+    lines = prettify_lines(lines)
+    lines = prepro.macro(lines)
 
     operations = get_operation(lines)
     execute(operations)
