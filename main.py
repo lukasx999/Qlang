@@ -87,7 +87,7 @@ class Operations:
         self.DECLARATION_VAR: str = "DECLARATION_VAR"
         self.DECLARATION_CONST: str = "DECLARATION_CONST"
 
-        self.DECLARATION_STACK: str = "DECLARATION_STACK"
+        self.DECLARATION_STACK_DYNAMIC: str = "DECLARATION_STACK_DYNAMIC"
         self.STACK_PUSH: str = "STACK_PUSH"
         self.STACK_POP: str = "STACK_POP"
 
@@ -239,7 +239,7 @@ def execute(operations: tuple[dict[tuple[str]: str]]) -> None:
 
 
                 # Dynamic Stack
-                case op.DECLARATION_STACK:
+                case op.DECLARATION_STACK_DYNAMIC:
                     name = values[1]
                     op.declaration_stack_dynamic(name=name)
 
@@ -288,6 +288,7 @@ def execute(operations: tuple[dict[tuple[str]: str]]) -> None:
                 case _:
                     raise Exception("ERROR: operation has not yet been implemented!")
 
+    # Debugging
     print("variables: ", end="")
     print(op.variables)
     print("constants: ", end="")
@@ -337,64 +338,63 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
 
     for line in lines:
         line: tuple[str] = tuple(line.split(TOKEN_SEPERATOR))
-        print(line)
+
+
+        # Define the syntax of the language
+        declaration_var: Callable = lambda: len(line) == 2 and line[0] == DECLARATION_VAR and line[1].isalpha() == True
+        declaration_const: Callable = lambda: len(line) == 2 and line[0] == DECLARATION_CONST and line[1].isalpha() == True
+
+        declaration_stack_dynamic: Callable = lambda: len(line) == 2 and line[0] == DECLARATION_STACK and line[1].isalpha() == True
+        declaration_stack_static: Callable = lambda: len(line) == 4 and line[0] == STACK_STATIC and line[1].isalpha() == True and line[2] == STACK_STATIC_KEYWORD
+        stack_push: Callable = lambda: len(line) == 4 and line[0] == STACK_PUSH and line[2] == STACK_PUSH_KEYWORD and line[3].isalpha() == True
+        stack_pop: Callable = lambda: len(line) == 3 and line[0] == STACK_POP and line[1] == STACK_POP_KEYWORD and line[2].isalpha() == True
+
+        assignment: Callable = lambda: len(line) == 3 and line[0].isalpha() == True and line[1] == ASSIGNMENT_EQUALS
+
+        prepro_include: Callable = lambda: len(line) == 2 and line[0] == INCLUDE
+        prepro_define: Callable = lambda: line[0] == MACRO and MACRO_EQUALS in line and len(line) >= 4 # HACK: does not check for :=
+
 
 
         # Declaring a variable
-        if len(line) == 2 and line[0] == DECLARATION_VAR and line[1].isalpha() == True:
+        if declaration_var() == True:
             operation = op.DECLARATION_VAR
 
         # Declaring a constant
-        elif len(line) == 2 and line[0] == DECLARATION_CONST and line[1].isalpha() == True:
+        elif declaration_const() == True:
             operation = op.DECLARATION_CONST
 
         # Declaring a dynamic stack
-        elif len(line) == 2 and line[0] == DECLARATION_STACK and line[1].isalpha() == True:
-            operation = op.DECLARATION_STACK
+        elif declaration_stack_dynamic() == True:
+            operation = op.DECLARATION_STACK_DYNAMIC
+
+            # Declaring a static stack
+        elif declaration_stack_static() == True:
+            operation = op.DECLARATION_STACK_STATIC
 
         # Pushing a value onto the stack
-        elif len(line) == 4 and line[0] == STACK_PUSH and line[2] == STACK_PUSH_KEYWORD and line[3].isalpha() == True:
+        elif stack_push() == True:
             operation = op.STACK_PUSH
 
         # Poping a value from the stack
-        elif len(line) == 3 and line[0] == STACK_POP and line[1] == STACK_POP_KEYWORD and line[2].isalpha() == True:
+        elif stack_pop() == True:
             operation = op.STACK_POP
 
-
-        # Declaring a static stack
-        elif len(line) == 4 and line[0] == STACK_STATIC and line[1].isalpha() == True and line[2] == STACK_STATIC_KEYWORD:
-            operation = op.DECLARATION_STACK_STATIC
-
-
-
         # Assignment
-        elif len(line) == 3 and line[0].isalpha() == True and line[1] == ASSIGNMENT_EQUALS:
+        elif assignment() == True:
             operation = op.ASSIGNMENT
 
 
-
-
-
         # Ignore preprocessor directives
-
-        # Include
-        elif len(line) == 2 and line[0] == INCLUDE:
+        elif prepro_include() | prepro_define() == True:
             continue
 
-        # Macro
-        elif line[0] == MACRO and MACRO_EQUALS in line and len(line) >= 4:  # HACK: does not check for :=
-            continue                                                        # gets replaced by prepro
 
 
-
-        else:
-            operation = None
 
         # Unknown operation
-        if operation == None:
-            raise Exception(f"ERROR: unknown operation `{" ".join(line)}`!")
+        else: raise Exception(f"ERROR: unknown operation `{" ".join(line)}`!")
 
-        print(operation)
 
         operations.append({operation: line})
 
@@ -426,7 +426,7 @@ def main() -> None:
 
 
     # Configure the preprocessor
-    prepro.Arguments.FLAG_MACRO_DISABLE = False
+    prepro.Arguments.FLAG_DEFINE_DISABLE = False
 
 
     # Run preprocessor directives: Include external libraries
@@ -436,7 +436,7 @@ def main() -> None:
 
     # Run preprocessor directives: Macros
     lines = prettify_lines(lines)
-    lines = prepro.macro(lines)
+    lines = prepro.define(lines)
 
     operations = get_operation(lines)
     execute(operations)

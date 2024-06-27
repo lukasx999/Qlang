@@ -20,10 +20,10 @@ class Arguments:
     FLAG_INCLUDE_ENFORCE_TOP: str = True
 
     # Macro
-    FLAG_MACRO_ACCEPT_WHITESPACE: bool = True
-    FLAG_MACRO_ENFORCE_UPPER: bool = False
-    FLAG_MACRO_ENFORCE_NO_DIGITS: bool = False
-    FLAG_MACRO_DISABLE: bool = False
+    FLAG_DEFINE_ACCEPT_WHITESPACE: bool = True
+    FLAG_DEFINE_ENFORCE_UPPER: bool = False
+    FLAG_DEFINE_ENFORCE_NO_DIGITS: bool = False
+    FLAG_DEFINE_DISABLE: bool = False
 
 
 
@@ -95,15 +95,15 @@ def include(lines: tuple[str]) -> tuple[str]:
 
 
 # Preprocessor
-def macro(lines: tuple[str]) -> tuple[str]:
-    MACRO: str = "define!"
+def define(lines: tuple[str]) -> tuple[str]:
+    DEFINE: str = "define!"
     EQUALS: str = "..."  # Used to be :=
-    WHITESPACE: str = " "
+    TOKEN_SEPERATOR: str = " "
 
 
     # Disable macro system entirely
-    if Arguments.FLAG_MACRO_DISABLE == True:
-        print(f"MACRO INFO: macros have been manually disabled! enforced by `FLAG_MACRO_DISABLE`")
+    if Arguments.FLAG_DEFINE_DISABLE == True:
+        print(f"MACRO INFO: define's have been manually disabled! enforced by `FLAG_MACRO_DISABLE`")
         return lines
 
 
@@ -112,22 +112,22 @@ def macro(lines: tuple[str]) -> tuple[str]:
 
     # Fill dict with macro values
     for line in lines:
-        line = tuple(line.split(WHITESPACE))
-        if line[0] == MACRO and line[2] == EQUALS:
+        line = tuple(line.split(TOKEN_SEPERATOR))
+        if line[0] == DEFINE and line[2] == EQUALS:
             name: str = line[1]
 
-            if Arguments.FLAG_MACRO_ACCEPT_WHITESPACE == True:
+            if Arguments.FLAG_DEFINE_ACCEPT_WHITESPACE == True:
                 # Accepts statements divided by whitespace
-                value: str = WHITESPACE.join(line[3:])
+                value: str = TOKEN_SEPERATOR.join(line[3:])
             else:
                 value: str = line[3]
 
 
             # Checks
-            if Arguments.FLAG_MACRO_ENFORCE_UPPER == True:
+            if Arguments.FLAG_DEFINE_ENFORCE_UPPER == True:
                 assert name.isupper() == True, f"MACRO ERROR: name of macro `{name}` must be uppercase! enforced by `FLAG_MACRO_ENFORCE_UPPER`"
 
-            if Arguments.FLAG_MACRO_ENFORCE_NO_DIGITS == True:
+            if Arguments.FLAG_DEFINE_ENFORCE_NO_DIGITS == True:
                 assert line[1].isalpha() == True, f"MACRO ERROR: name of macro `{name}` cannot be a digit! enforced by `FLAG_MACRO_ENFORCE_NO_DIGITS`"
 
 
