@@ -96,8 +96,8 @@ def include(lines: tuple[str]) -> tuple[str]:
 
 # Preprocessor
 def macro(lines: tuple[str]) -> tuple[str]:
-    MACRO: str = "macro!"
-    EQUALS: str = ":="
+    MACRO: str = "define!"
+    EQUALS: str = "..."  # Used to be :=
     WHITESPACE: str = " "
 
 

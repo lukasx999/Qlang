@@ -11,7 +11,7 @@ from copy import deepcopy
 # Modules
 # from include.preprocessor import macro, include
 import include.preprocessor as prepro
-from include.stack import Stack
+from include.stack import Stack, StackError
 
 
 
@@ -91,6 +91,9 @@ class Operations:
         self.STACK_PUSH: str = "STACK_PUSH"
         self.STACK_POP: str = "STACK_POP"
 
+        self.DECLARATION_STACK_STATIC: str = "DECLARATION_STACK_STATIC"
+
+
         self.ASSIGNMENT: str = "ASSIGNMENT"
 
         # None means that var has not been defined yet
@@ -112,32 +115,42 @@ class Operations:
 
 
 
+    def _check_varconst_exist(self, name: str, /) -> None:
+        """
+        check if a variable or constant by the name of `name` already exists
+        throw an error if it does
+        """
+        assert name not in self.varconst, f"ERROR: var/const of the name {name} already exists!"
+
 
 
     def declaration_var(self, *, name: str) -> None:
-        if name in self.variables:
-            raise Exception("ERROR: variable already exists!")
-
-        if name in self.constants:
-            raise Exception(f"ERROR: constant of the name {name} already exists!")
-
+        self._check_varconst_exist(name)
         self.variables[name] = None
 
 
     def declaration_const(self, *, name: str) -> None:
-        if name in self.constants:
-            raise Exception("ERROR: constant already exists!")
-
-        if name in self.variables:
-            raise Exception(f"ERROR: variable of the name {name} already exists!")
-
+        self._check_varconst_exist(name)
         self.constants[name] = None
 
 
 
-    def declaration_stack(self, *, name: str) -> None:
+    def _check_stack_exist(self, name) -> None:
+        """
+        checks if a stack already exists
+        if not raise an exception (TODO: raise exception, not assertion)
+        """
         assert name not in self.stacks, f"STACK ERROR: stack named `{name}` already exists!"
+
+
+    def declaration_stack_dynamic(self, *, name: str) -> None:
+        self._check_stack_exist(name)
         self.stacks[name] = Stack()
+
+
+    def declaration_stack_static(self, *, name: str, size: int) -> None:
+        self._check_stack_exist(name)
+        self.stacks[name] = Stack(size=size)
 
 
     def stack_push(self, *, name: str, value: str) -> None:
@@ -145,75 +158,58 @@ class Operations:
         stack = self.stacks[name]
 
         if value.isdigit() == True:
-            stack.push(value)
+            try:
+                stack.push(value)
+            except StackError:  # pushing to static stack
+                assert False, f"STATIC STACK ERROR: cannot exceed stack size of `{stack.size}`!"
 
         elif value.isalpha() == True:
-            raise NotImplementedError("pushing variables onto the stack is not yet supported!")  # TODO: add this feature
-
+            raise NotImplementedError("pushing variables onto the stack is not yet supported! use a macro instead! :)")  # TODO: add this feature
 
 
     def stack_pop(self, *, name: str) -> None:
         assert name in self.stacks, f"STACK ERROR: stack named `{name}` does not exist!"
         stack = self.stacks[name]
 
-        stack.pop()
+        try:
+            stack.pop()
+        except StackError:  # Poping empty stack
+            raise Exception("STACK ERROR: cannot pop from empty stack!")
+
 
 
 
 
     def assignment(self, *, name: str, value: str | int) -> None:
+        assert name in self.varconst, f"ERROR: variable/constant named `{name}` does not exist! declare it using `var/const {name}`!"
 
-            # Assign a variable (all the time)
-            if name in self.variables:
-                if value.isdigit() == True:
-                    self.variables[name] = value
+        # Determine if value is a var/const or a numberic literal
+        val: str | None = None
 
-
-                # Assign a variable to another variable/constant
-                if value.isalpha() == True:
-                    if value in self.variables:
-                        assert self.variables[value] != None, f"variable `{value}` has not been defined yet!"
-                        self.variables[name] = self.variables[value]
-
-                    elif value in self.constants:
-                        assert self.constants[value] != None, f"constant `{value}` has not been defined yet!"
-                        self.variables[name] = self.constants[value]
-
-                    else: raise Exception(f"ERROR: variable/const `{value}` has not been defined yet!")
+        # Assign a numeric literal
+        if value.isdigit() == True:
+            val = value
 
 
+        # Assign value of another var/const to this var/const
+        elif value.isalpha() == True:
+            assert value in self.varconst and self.varconst[value] != None, f"ERROR: var/const named `{value}` does not exist or has not been defined yet!"
+            val = self.varconst[value]
 
-            # Assign a constant (once)
-            elif name in self.constants:
-
-                if self.constants[name] == None:
-                    if value.isdigit() == True:
-                        self.constants[name] = value
-
-                    # Assign a constant to another variable/constant
-                    if value.isalpha() == True:
-                        if value in self.variables:
-                            assert self.variables[value] != None, f"variable `{value}` has not been defined yet!"
-                            self.constants[name] = self.variables[value]
-
-                        elif value in self.constants:
-                            assert self.variables[value] != None, f"constant `{value}` has not been defined yet!"
-                            self.constants[name] = self.constants[value]
-
-                        else: raise Exception(f"ERROR: variable/const `{value}` has not been defined yet!")
+        else:
+            assert False, f"UNKNOWN ERROR: `{value}` is not a alphabetic value nor a digit?! what the hell!"
 
 
+        # Determine if the to be assigned var/const is of type var or const
+        if name in self.variables:
+            self.variables[name] = val
 
-                else: raise Exception(f"ERROR: cannot assign value to constant `{name}` which is associated with value {self.constants[name]}! constants can only be assigned once!")
+        elif name in self.constants:
+            assert self.constants[name] == None, f"CONST ERROR: constant named `{name}` due to its nature cannot be redefined!"
+            self.constants[name] = val
 
-
-            else: raise Exception(f"ERROR: variable/constant named `{name}` does not exist! declare it using `var/const {name}`!")
-
-
-
-
-
-
+        else:
+            assert False, f"UNKNOWN ERROR: var/const `{name}` is not a variable nor a constant?! what the hell!"
 
 
 
@@ -242,10 +238,10 @@ def execute(operations: tuple[dict[tuple[str]: str]]) -> None:
                     op.declaration_const(name=name)
 
 
-                # Stack
+                # Dynamic Stack
                 case op.DECLARATION_STACK:
                     name = values[1]
-                    op.declaration_stack(name=name)
+                    op.declaration_stack_dynamic(name=name)
 
 
                 # Push onto Stack
@@ -259,6 +255,15 @@ def execute(operations: tuple[dict[tuple[str]: str]]) -> None:
                 case op.STACK_POP:
                     name = values[2]
                     op.stack_pop(name=name)
+
+
+
+                # Static Stack
+                case op.DECLARATION_STACK_STATIC:
+                    name: str = values[1]
+                    size: int = int(values[3])
+                    op.declaration_stack_static(name=name, size=size)
+
 
 
 
@@ -303,17 +308,24 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
     DECLARATION_CONST: str = "const"
     ASSIGNMENT_EQUALS: str = "="
 
+    # Dynamic Stack
     DECLARATION_STACK: str = "stack"
     STACK_PUSH: str = "push"
-    STACK_PUSH_KEYWORD: str = "in"
+    STACK_PUSH_KEYWORD: str = "onto"
     STACK_POP: str = "pop"
     STACK_POP_KEYWORD: str = "from"
 
 
+    # Static Stack
+    STACK_STATIC: str = "stack"
+    STACK_STATIC_KEYWORD: str = "of"
+
+
+
     # Prepro
-    INCLUDE: str = "include!"
-    MACRO: str = "macro!"
-    MACRO_EQUALS: str = ":="
+    INCLUDE: str = "include!"  # TODO: share this variable with include/preprocessor
+    MACRO: str = "define!"  # TODO: share this variable with include/preprocessor
+    MACRO_EQUALS: str = "..."  # TODO: share this variable with include/preprocessor
 
 
 
@@ -336,7 +348,7 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
         elif len(line) == 2 and line[0] == DECLARATION_CONST and line[1].isalpha() == True:
             operation = op.DECLARATION_CONST
 
-        # Declaring a stack
+        # Declaring a dynamic stack
         elif len(line) == 2 and line[0] == DECLARATION_STACK and line[1].isalpha() == True:
             operation = op.DECLARATION_STACK
 
@@ -348,6 +360,10 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
         elif len(line) == 3 and line[0] == STACK_POP and line[1] == STACK_POP_KEYWORD and line[2].isalpha() == True:
             operation = op.STACK_POP
 
+
+        # Declaring a static stack
+        elif len(line) == 4 and line[0] == STACK_STATIC and line[1].isalpha() == True and line[2] == STACK_STATIC_KEYWORD:
+            operation = op.DECLARATION_STACK_STATIC
 
 
 
