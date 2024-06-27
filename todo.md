@@ -9,13 +9,21 @@
 
 - Add argparse options for configuring the preprocessor\
 - print to stdout\
-- Implement a stack (push/pop)\
 - Syntax highlighting for Vim\
+
+
+## Restrictions
+
+- var/const names cannot be numbers
+
+
 
 
 # Done
 
 
+- Implement a stack (push/pop)\
+- add docstrings (multi-line comments)
 - Include Modules\
 - Compiler Flags\
 - - FLAG_.\*\

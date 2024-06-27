@@ -5,10 +5,13 @@ import sys
 from textwrap import dedent
 from typing import Generator, Callable, Any, AnyStr
 from pprint import pprint
+from copy import deepcopy
+
 
 # Modules
 # from include.preprocessor import macro, include
 import include.preprocessor as prepro
+from include.stack import Stack
 
 
 
@@ -18,19 +21,50 @@ MESSAGE: str = dedent("""\
                       usage: qlang <filename.q>\
                       """)
 COMMENT_CHAR: str = "#"
+DOCSTRING_START: str = "->"
+DOCSTRING_END: str = "<-"
+
 TOKEN_SEPERATOR: str = " "
 
 
 
 
 def prettify_lines(lines: tuple[str]) -> tuple[str]:
+    FLAG_DOCSTRING_ENFORCE_END: str = True
+
+
     # Remove comments and newline chars
-    new: list[str] = [re.sub(f"{COMMENT_CHAR}.*$|\n", "", line) for line in lines]
+    no_comments_newlines: list[str] = [re.sub(f"{COMMENT_CHAR}.*$|\n", "", line) for line in lines]
 
     # Remove blank lines and trailing whitespace
-    new = [line.strip() for line in new if bool(re.search("^$", line)) == False]
+    no_blank_whitespace = [line.strip() for line in no_comments_newlines if bool(re.search("^$", line)) == False]
 
-    return tuple(new)
+    # Remove docstrings
+    no_docstring: list[str] = []
+    docstring_flag: bool  = False
+
+    for line in no_blank_whitespace:
+
+        if tuple(line.split(TOKEN_SEPERATOR)) == (DOCSTRING_START,):
+            docstring_flag = True
+
+        if docstring_flag == False:
+            no_docstring.append(line)
+
+        if tuple(line.split(TOKEN_SEPERATOR)) == (DOCSTRING_END,):
+            docstring_flag = False
+
+
+
+    if FLAG_DOCSTRING_ENFORCE_END == True:
+        assert docstring_flag == False, f"ERROR: docstring has not been ended with `{DOCSTRING_END}`!"
+
+
+
+    return tuple(no_docstring)
+
+
+
 
 
 
@@ -52,11 +86,32 @@ class Operations:
         # Operation identifiers
         self.DECLARATION_VAR: str = "DECLARATION_VAR"
         self.DECLARATION_CONST: str = "DECLARATION_CONST"
+
+        self.DECLARATION_STACK: str = "DECLARATION_STACK"
+        self.STACK_PUSH: str = "STACK_PUSH"
+        self.STACK_POP: str = "STACK_POP"
+
         self.ASSIGNMENT: str = "ASSIGNMENT"
 
         # None means that var has not been defined yet
         self.variables: dict[str: int | None] = {}
         self.constants: dict[str: int | None] = {}
+
+        self.stacks: dict[str: Stack] = {}
+
+
+
+    @property
+    def varconst(self) -> dict[str: int | None]:  # Holds all variables and constants
+        vars: dict[str: int | None] = deepcopy(self.variables)
+        const: dict[str: int | None] = deepcopy(self.constants)
+
+        vars.update(const)
+
+        return vars
+
+
+
 
 
     def declaration_var(self, *, name: str) -> None:
@@ -80,14 +135,30 @@ class Operations:
 
 
 
-    def puts(self, *, name: str) -> None:
-        ...
+    def declaration_stack(self, *, name: str) -> None:
+        assert name not in self.stacks, f"STACK ERROR: stack named `{name}` already exists!"
+        self.stacks[name] = Stack()
 
-    def push(self, *, name: str) -> None:
-        ...
 
-    def pop(self, *, name: str) -> None:
-        ...
+    def stack_push(self, *, name: str, value: str) -> None:
+        assert name in self.stacks, f"STACK ERROR: stack named `{name}` does not exist!"
+        stack = self.stacks[name]
+
+        if value.isdigit() == True:
+            stack.push(value)
+
+        elif value.isalpha() == True:
+            raise NotImplementedError("pushing variables onto the stack is not yet supported!")  # TODO: add this feature
+
+
+
+    def stack_pop(self, *, name: str) -> None:
+        assert name in self.stacks, f"STACK ERROR: stack named `{name}` does not exist!"
+        stack = self.stacks[name]
+
+        stack.pop()
+
+
 
 
     def assignment(self, *, name: str, value: str | int) -> None:
@@ -171,6 +242,27 @@ def execute(operations: tuple[dict[tuple[str]: str]]) -> None:
                     op.declaration_const(name=name)
 
 
+                # Stack
+                case op.DECLARATION_STACK:
+                    name = values[1]
+                    op.declaration_stack(name=name)
+
+
+                # Push onto Stack
+                case op.STACK_PUSH:
+                    value = values[1]
+                    name = values[3]
+                    op.stack_push(name=name, value=value)
+
+
+                # Poping from the Stack (no assignment)
+                case op.STACK_POP:
+                    name = values[2]
+                    op.stack_pop(name=name)
+
+
+
+                # Assigning value to var/const (can be another var/const)
                 case op.ASSIGNMENT:
                     name = values[0]  # var/const name
                     value = values[2]
@@ -195,6 +287,10 @@ def execute(operations: tuple[dict[tuple[str]: str]]) -> None:
     print(op.variables)
     print("constants: ", end="")
     print(op.constants)
+    print("var/const: ", end="")
+    print(op.varconst)
+    print("stacks: ", end="")
+    print(op.stacks)
 
 
 
@@ -203,16 +299,21 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
 
     op = Operations()
 
-
-
     DECLARATION_VAR: str = "var"
     DECLARATION_CONST: str = "const"
     ASSIGNMENT_EQUALS: str = "="
 
+    DECLARATION_STACK: str = "stack"
+    STACK_PUSH: str = "push"
+    STACK_PUSH_KEYWORD: str = "in"
+    STACK_POP: str = "pop"
+    STACK_POP_KEYWORD: str = "from"
+
+
     # Prepro
     INCLUDE: str = "include!"
     MACRO: str = "macro!"
-    # MACRO_EQUALS: str = ":="
+    MACRO_EQUALS: str = ":="
 
 
 
@@ -226,6 +327,7 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
         line: tuple[str] = tuple(line.split(TOKEN_SEPERATOR))
         print(line)
 
+
         # Declaring a variable
         if len(line) == 2 and line[0] == DECLARATION_VAR and line[1].isalpha() == True:
             operation = op.DECLARATION_VAR
@@ -234,21 +336,38 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
         elif len(line) == 2 and line[0] == DECLARATION_CONST and line[1].isalpha() == True:
             operation = op.DECLARATION_CONST
 
+        # Declaring a stack
+        elif len(line) == 2 and line[0] == DECLARATION_STACK and line[1].isalpha() == True:
+            operation = op.DECLARATION_STACK
+
+        # Pushing a value onto the stack
+        elif len(line) == 4 and line[0] == STACK_PUSH and line[2] == STACK_PUSH_KEYWORD and line[3].isalpha() == True:
+            operation = op.STACK_PUSH
+
+        # Poping a value from the stack
+        elif len(line) == 3 and line[0] == STACK_POP and line[1] == STACK_POP_KEYWORD and line[2].isalpha() == True:
+            operation = op.STACK_POP
+
+
+
+
         # Assignment
         elif len(line) == 3 and line[0].isalpha() == True and line[1] == ASSIGNMENT_EQUALS:
             operation = op.ASSIGNMENT
 
 
 
-        # ignore preprocessor directives
+
+
+        # Ignore preprocessor directives
 
         # Include
         elif len(line) == 2 and line[0] == INCLUDE:
             continue
 
         # Macro
-        elif line[0] == MACRO:  # HACK: does not check for :=
-            continue            # gets replaced by prepro
+        elif line[0] == MACRO and MACRO_EQUALS in line and len(line) >= 4:  # HACK: does not check for :=
+            continue                                                        # gets replaced by prepro
 
 
 
