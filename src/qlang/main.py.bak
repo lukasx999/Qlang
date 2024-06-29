@@ -7,16 +7,11 @@ from typing import Generator, Callable, Any, AnyStr
 from pprint import pprint
 from copy import deepcopy
 
-# Third party
-from icecream import ic
-
 
 # Modules
-from include.preprocessor import define, include, Arguments
+# from include.preprocessor import macro, include
+import include.preprocessor as prepro
 from include.stack import Stack, StackError
-
-from tokenizer.tokenizer import tokenizer
-
 
 
 
@@ -25,7 +20,6 @@ MESSAGE: str = dedent("""\
                       Q - a primitive programming language
                       usage: qlang <filename.q>\
                       """)
-
 COMMENT_CHAR: str = "#"
 DOCSTRING_START: str = "->"
 DOCSTRING_END: str = "<-"
@@ -411,14 +405,6 @@ def get_operation(lines: tuple[str]) -> tuple[dict[str: tuple[str]]]:
 
 
 
-
-
-
-
-
-
-
-
 def get_lines(filename: str) -> tuple[str]:
     with open(filename, "r") as file:
         lines: tuple[str] = tuple(file.readlines())
@@ -437,29 +423,21 @@ def main() -> None:
     lines: tuple[str] = get_lines(filename)
 
 
-    """
-    simulation flow:
-    input file -> preprocessor -> tokenizer -> execution
-    """
 
 
     # Configure the preprocessor
-    Arguments.FLAG_DEFINE_DISABLE = False
+    prepro.Arguments.FLAG_DEFINE_DISABLE = False
+
 
     # Run preprocessor directives: Include external libraries
-    # lines = prettify_lines(lines)
-    # lines = include(lines)
+    lines = prettify_lines(lines)
+    lines = prepro.include(lines)
+
 
     # Run preprocessor directives: Macros
-    # lines = prettify_lines(lines)
-    # lines = define(lines)
-
     lines = prettify_lines(lines)
-    tokens: tuple[tuple[str]] = tokenizer(lines)
+    lines = prepro.define(lines)
 
-    ic(tokens)
-
-    return
     operations = get_operation(lines)
     execute(operations)
 

@@ -1,0 +1,186 @@
+
+
+import re
+import sys
+from typing import Generator, Callable, Any, AnyStr
+
+from icecream import ic
+
+
+
+if __name__ == '__main__':
+    print("do not run this module as a script!")
+    sys.exit(1)
+
+
+
+class TokenError(Exception):
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
+
+class Keywords:
+    END      = "end"
+    ################
+    FUNCTION = "func"
+    ################
+    IF       = "if"
+    ELSE     = "else"
+
+
+
+
+class Datatypes:
+    INTEGER  = "int"
+    FLOAT    = "float"
+    STRING   = "string"
+
+
+class Punctuation:
+    PAREN_OPEN            = "("
+    PAREN_CLOSED          = ")"
+    SQUARE_BRACKET_OPEN   = "["
+    SQUARE_BRACKET_CLOSED = "]"
+    CURLY_BRACKET_OPEN    = "{"
+    CURLY_BRACKET_CLOSED  = "}"
+    COMMA                 = ","
+    DASH                  = "-"
+    HASH                  = "#"
+    DOUBLE_QUOTE          = '"'
+    SINGLE_QUOTE          = "'"
+    WHITESPACE            = " "
+    EQUALSIGN             = "="
+    COLON                 = ":"
+    SEMI_COLON            = ";"
+    GREATER_THAN          = ">"
+    LESS_THAN             = "<"
+    EQUALSIGN_DOUBLE      = "=="
+    EQUALSIGN_NOT_EQUAL   = "!="
+    GREATER_THAN_EQUAL    = ">="
+    LESS_THAN_EQUAL       = "<="
+    ARROW_RIGHT           = "->"
+    ARROW_LEFT            = "<-"
+
+
+
+
+
+
+def tokenizer(lines: tuple[str]) -> tuple[tuple[str]]:
+    """
+    takes a list containing strings representing each line
+    outputs a list containing tuples which contain strings representing each token
+    """
+
+
+
+    for line in lines:
+        ic(line)
+        chars: tuple[str] = tuple(line)
+
+        tokens: list[str] = []
+
+        char_queries: list[str] = []
+        punctuation_queries: list[str] = []
+
+
+        current_iter: int
+        char: str
+        for current_iter, char in enumerate(chars):
+
+            last_iter: bool = True if current_iter+1 == len(chars) else False  # check if on last iteration
+
+            is_string: Callable = lambda: bool(re.search("[a-zA-Z]", char))
+
+
+            # if cursor is at a char, append it to list
+            if is_string():
+                char_queries.append(char)
+
+
+            # if cursor is on non-char or at end of line, check list and clear it
+            if not is_string() or last_iter:
+
+                match "".join(char_queries):
+                    case Keywords.END:
+                        tokens.append("end")
+
+                    case Keywords.FUNCTION:
+                        tokens.append("function")
+
+                    case Keywords.IF:
+                        tokens.append("if")
+
+                    case Keywords.ELSE:
+                        tokens.append("else")
+
+                    case Datatypes.INTEGER:
+                        tokens.append("integer")
+
+                    case Datatypes.FLOAT:
+                        tokens.append("float")
+
+                    case Datatypes.STRING:
+                        tokens.append("string")
+
+
+
+                    case _:  # If string is no keyword, it must be an identifier
+                        if char_queries != []:
+                            tokens.append("identifier")
+
+                char_queries.clear()
+
+
+
+
+
+
+            match char:
+
+                case Punctuation.DASH:
+                    if chars[current_iter+1] == Punctuation.GREATER_THAN:
+                            tokens.append("arrow_right")
+
+
+                case Punctuation.GREATER_THAN:
+                    tokens.append("greater_than")
+
+
+
+
+                case Punctuation.PAREN_OPEN:
+                    tokens.append("paren_open")
+
+                case Punctuation.PAREN_CLOSED:
+                    tokens.append("paren_closed")
+
+                case Punctuation.COMMA:
+                    tokens.append("comma")
+
+                case Punctuation.WHITESPACE:
+                    tokens.append("whitespace")
+
+                case Punctuation.COLON:
+                    tokens.append("colon")
+
+                case Punctuation.SEMI_COLON:
+                    tokens.append("semi_colon")
+
+                case Punctuation.EQUALSIGN:
+                    tokens.append("equal_sign")
+
+                case _:
+                    ...
+                    # raise TokenError(f"unknown token named {char}")
+
+
+
+
+
+
+
+
+        ic(char_queries)
+        ic(tokens)
