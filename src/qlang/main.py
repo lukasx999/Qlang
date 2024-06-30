@@ -16,6 +16,7 @@ from include.preprocessor import define, include, Arguments
 from include.stack import Stack, StackError
 
 from tokenizer.tokenizer import tokenizer
+from tokenizer.token_checker import token_checker
 
 
 
@@ -454,10 +455,17 @@ def main() -> None:
     # lines = prettify_lines(lines)
     # lines = define(lines)
 
-    lines = prettify_lines(lines)
+
+
+
+
+    # lines = prettify_lines(lines)
+
     tokens: tuple[tuple[str]] = tokenizer(lines)
 
     ic(tokens)
+
+    checked_tokens: tuple[tuple[str]] = token_checker(tokens)
 
     return
     operations = get_operation(lines)

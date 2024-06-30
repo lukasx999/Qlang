@@ -1,3 +1,2 @@
-
-func foo in (a, b, c) => stack
-end func
+func main(x, y, z) -> int:
+=

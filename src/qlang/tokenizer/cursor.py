@@ -31,7 +31,7 @@ class CharCursor:
         """
         try:
             next = self.next_char
-            return bool(re.search("[a-zA-z]", next))
+            return bool(re.search("[a-zA-Z1-9]", next))
         except IndexError:
             return False
 
@@ -52,7 +52,7 @@ class CharCursor:
 
     @property
     def is_string(self) -> bool:
-        return bool(re.search("[a-zA-z]", self.current))
+        return bool(re.search("[a-zA-Z1-9]", self.current))
 
     def forward(self) -> None:
         self.index += 1
